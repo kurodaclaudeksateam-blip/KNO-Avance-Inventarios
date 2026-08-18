@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-  <link rel="stylesheet" href="css/styles.css?v=5">
+  <link rel="stylesheet" href="css/styles.css?v=6">
 </head>
 <body>
 
@@ -125,6 +125,10 @@
             <div id="lbl-valor-pendiente" class="metric-card__value" style="color:var(--color-danger)">$0.00</div>
           </div>
           <div class="metric-card">
+            <span class="metric-card__label">% Avance en Valor</span>
+            <div id="lbl-pct-valor" class="metric-card__value" style="color:var(--color-primary)">0.0%</div>
+          </div>
+          <div class="metric-card">
             <span class="metric-card__label">SKUs Total</span>
             <div id="lbl-skus-total" class="metric-card__value">0</div>
           </div>
@@ -135,6 +139,10 @@
           <div class="metric-card">
             <span class="metric-card__label">SKUs Pendientes</span>
             <div id="lbl-skus-pendiente" class="metric-card__value" style="color:var(--color-danger)">0</div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-card__label">% Avance en SKUs</span>
+            <div id="lbl-pct-skus" class="metric-card__value" style="color:var(--color-primary)">0.0%</div>
           </div>
           <div class="metric-card">
             <span class="metric-card__label">Duplicados</span>
@@ -204,8 +212,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4/dist/exceljs.min.js"></script>
-  <script src="js/supabase-client.js?v=5"></script>
-  <script src="js/ui-helpers.js?v=5"></script>
-  <script src="js/carga.js?v=5"></script>
+  <script src="js/supabase-client.js?v=6"></script>
+  <script src="js/ui-helpers.js?v=6"></script>
+  <script src="js/carga.js?v=6"></script>
 </body>
 </html>

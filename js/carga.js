@@ -668,7 +668,9 @@ function calcularResumenImportes() {
   const agg = calcularAgregadosImportes();
   const valorPendiente = Math.max(agg.valorTotal - agg.valorCotizado, 0);
   const skusPendiente = Math.max(agg.skusTotal - agg.skusCotizado, 0);
-  return { ...agg, valorPendiente, skusPendiente };
+  const pctValor = agg.valorTotal > 0 ? (agg.valorCotizado / agg.valorTotal) * 100 : 0;
+  const pctSkus = agg.skusTotal > 0 ? (agg.skusCotizado / agg.skusTotal) * 100 : 0;
+  return { ...agg, valorPendiente, skusPendiente, pctValor, pctSkus };
 }
 
 function renderResumenImportes() {
@@ -677,9 +679,11 @@ function renderResumenImportes() {
   document.getElementById('lbl-valor-total').textContent = formatoMoneda(resumen.valorTotal);
   document.getElementById('lbl-valor-cotizado').textContent = formatoMoneda(resumen.valorCotizado);
   document.getElementById('lbl-valor-pendiente').textContent = formatoMoneda(resumen.valorPendiente);
+  document.getElementById('lbl-pct-valor').textContent = resumen.pctValor.toFixed(1) + '%';
   document.getElementById('lbl-skus-total').textContent = resumen.skusTotal;
   document.getElementById('lbl-skus-cotizado').textContent = resumen.skusCotizado;
   document.getElementById('lbl-skus-pendiente').textContent = resumen.skusPendiente;
+  document.getElementById('lbl-pct-skus').textContent = resumen.pctSkus.toFixed(1) + '%';
   document.getElementById('lbl-avance-duplicados').textContent = resumen.duplicados;
 
   return resumen;
@@ -895,14 +899,14 @@ els.btnExportar.addEventListener('click', async () => {
   const agg = calcularResumenImportes();
   const proyeccion = calcularProyeccion(agg);
 
-  sheetAvance.mergeCells('A1:E1');
+  sheetAvance.mergeCells('A1:I1');
   sheetAvance.getCell('A1').value = `${carga.nombre} — Avance y Proyección`;
   sheetAvance.getCell('A1').font = { bold: true, size: 14 };
 
-  const importeHeaders = ['Valor Total', 'Valor Cotizado', 'Valor Pendiente', 'SKUs Total', 'SKUs Cotizados', 'SKUs Pendientes', 'Duplicados'];
+  const importeHeaders = ['Valor Total', 'Valor Cotizado', 'Valor Pendiente', '% Avance en Valor', 'SKUs Total', 'SKUs Cotizados', 'SKUs Pendientes', '% Avance en SKUs', 'Duplicados'];
   const importeValores = [
-    formatoMoneda(agg.valorTotal), formatoMoneda(agg.valorCotizado), formatoMoneda(agg.valorPendiente),
-    agg.skusTotal, agg.skusCotizado, agg.skusPendiente, agg.duplicados,
+    formatoMoneda(agg.valorTotal), formatoMoneda(agg.valorCotizado), formatoMoneda(agg.valorPendiente), agg.pctValor.toFixed(1) + '%',
+    agg.skusTotal, agg.skusCotizado, agg.skusPendiente, agg.pctSkus.toFixed(1) + '%', agg.duplicados,
   ];
   importeHeaders.forEach((h, i) => {
     const cell = sheetAvance.getCell(3, i + 1);
@@ -915,13 +919,13 @@ els.btnExportar.addEventListener('click', async () => {
     cell.font = { bold: true, size: 13 };
   });
 
-  sheetAvance.mergeCells('A6:E6');
+  sheetAvance.mergeCells('A6:I6');
   sheetAvance.getCell('A6').value = 'Proyección de término';
   sheetAvance.getCell('A6').font = { bold: true, size: 11 };
-  sheetAvance.mergeCells('A7:E7');
+  sheetAvance.mergeCells('A7:I7');
   sheetAvance.getCell('A7').value = proyeccion.main;
   sheetAvance.getCell('A7').font = { bold: true, size: 13 };
-  sheetAvance.mergeCells('A8:E8');
+  sheetAvance.mergeCells('A8:I8');
   sheetAvance.getCell('A8').value = proyeccion.detail;
   sheetAvance.getCell('A8').font = { italic: true, size: 9, color: { argb: 'FF6B7280' } };
   sheetAvance.getRow(8).height = 30;
@@ -951,7 +955,7 @@ els.btnExportar.addEventListener('click', async () => {
   }
 
   sheetAvance.columns = [
-    { width: 22 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 30 },
+    { width: 22 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 30 }, { width: 16 }, { width: 16 }, { width: 12 },
   ];
 
   const sheetComentarios = workbook.addWorksheet('Comentarios');
