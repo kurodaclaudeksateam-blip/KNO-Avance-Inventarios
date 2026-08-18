@@ -664,20 +664,25 @@ function renderImportesForm() {
   });
 }
 
-function renderResumenImportes() {
+function calcularResumenImportes() {
   const agg = calcularAgregadosImportes();
   const valorPendiente = Math.max(agg.valorTotal - agg.valorCotizado, 0);
   const skusPendiente = Math.max(agg.skusTotal - agg.skusCotizado, 0);
-
-  document.getElementById('lbl-valor-total').textContent = formatoMoneda(agg.valorTotal);
-  document.getElementById('lbl-valor-cotizado').textContent = formatoMoneda(agg.valorCotizado);
-  document.getElementById('lbl-valor-pendiente').textContent = formatoMoneda(valorPendiente);
-  document.getElementById('lbl-skus-total').textContent = agg.skusTotal;
-  document.getElementById('lbl-skus-cotizado').textContent = agg.skusCotizado;
-  document.getElementById('lbl-skus-pendiente').textContent = skusPendiente;
-  document.getElementById('lbl-avance-duplicados').textContent = agg.duplicados;
-
   return { ...agg, valorPendiente, skusPendiente };
+}
+
+function renderResumenImportes() {
+  const resumen = calcularResumenImportes();
+
+  document.getElementById('lbl-valor-total').textContent = formatoMoneda(resumen.valorTotal);
+  document.getElementById('lbl-valor-cotizado').textContent = formatoMoneda(resumen.valorCotizado);
+  document.getElementById('lbl-valor-pendiente').textContent = formatoMoneda(resumen.valorPendiente);
+  document.getElementById('lbl-skus-total').textContent = resumen.skusTotal;
+  document.getElementById('lbl-skus-cotizado').textContent = resumen.skusCotizado;
+  document.getElementById('lbl-skus-pendiente').textContent = resumen.skusPendiente;
+  document.getElementById('lbl-avance-duplicados').textContent = resumen.duplicados;
+
+  return resumen;
 }
 
 function renderCortesTabla() {
@@ -700,47 +705,76 @@ function renderCortesTabla() {
   }).join('');
 }
 
-function renderProyeccion(agg) {
-  if (cortes.length === 0) {
-    els.proyeccionCard.innerHTML = `
-      <p class="proyeccion-card__title">Proyección de término</p>
-      <p class="proyeccion-card__main">Sin datos suficientes</p>
-      <p class="proyeccion-card__detail">Guarda tu primer corte con "Iniciar nuevo corte" para empezar a calcular cuándo se llegará al 100% cotizado.</p>
-    `;
-    return;
-  }
+// Cortes con valor_total = 0 son "vacíos" (el usuario guardó el corte antes de
+// capturar los importes) y no sirven como punto de referencia real para el ritmo.
+function cortesConDatos() {
+  return cortes.filter((c) => Number(c.valor_total) > 0);
+}
 
-  const primerCorte = cortes[0];
-  const ahora = new Date();
-  const diasTranscurridos = Math.max((ahora - new Date(primerCorte.fecha)) / 86400000, 0.01);
-  const avanceValor = agg.valorCotizado - Number(primerCorte.valor_cotizado);
-  const ratePorDia = avanceValor / diasTranscurridos;
-
+function calcularProyeccion(agg) {
   if (agg.valorPendiente <= 0) {
-    els.proyeccionCard.innerHTML = `
-      <p class="proyeccion-card__title">Proyección de término</p>
-      <p class="proyeccion-card__main" style="color:var(--color-success)">¡Completado! 100% cotizado</p>
-      <p class="proyeccion-card__detail">El valor pendiente llegó a $0.00.</p>
-    `;
-    return;
+    return {
+      main: '¡Completado! 100% cotizado',
+      detail: 'El valor pendiente llegó a $0.00.',
+      color: 'var(--color-success)',
+    };
   }
+
+  const validos = cortesConDatos();
+
+  if (validos.length === 0) {
+    return {
+      main: 'Sin datos suficientes',
+      detail: 'Guarda tu primer corte (con los importes ya capturados) para empezar a calcular cuándo se llegará al 100% cotizado.',
+    };
+  }
+
+  if (validos.length === 1) {
+    return {
+      main: 'Falta un segundo corte',
+      detail: `Guardaste un corte el ${formatFecha(validos[0].fecha)}. Guarda otro corte —idealmente al menos un día después— para poder calcular el ritmo de avance.`,
+    };
+  }
+
+  const primero = validos[0];
+  const ultimo = validos[validos.length - 1];
+  const diasEntreCortes = (new Date(ultimo.fecha) - new Date(primero.fecha)) / 86400000;
+
+  // Menos de medio día entre el primer y el último corte con datos: no hay
+  // suficiente separación en el tiempo para que el ritmo diario sea confiable
+  // (evita proyecciones absurdas cuando se guardan varios cortes seguidos).
+  if (diasEntreCortes < 0.5) {
+    return {
+      main: 'Necesitas más tiempo entre cortes',
+      detail: `Los cortes con datos están muy juntos en el tiempo (${formatFecha(primero.fecha)} y ${formatFecha(ultimo.fecha)}). Guarda cortes en días distintos para que la proyección sea confiable.`,
+    };
+  }
+
+  const avanceValor = Number(ultimo.valor_cotizado) - Number(primero.valor_cotizado);
+  const ratePorDia = avanceValor / diasEntreCortes;
 
   if (ratePorDia <= 0) {
-    els.proyeccionCard.innerHTML = `
-      <p class="proyeccion-card__title">Proyección de término</p>
-      <p class="proyeccion-card__main">Sin avance registrado todavía</p>
-      <p class="proyeccion-card__detail">Desde el primer corte (${formatFecha(primerCorte.fecha)}) no se ha reducido el valor pendiente. Sigue capturando avance y guarda un nuevo corte.</p>
-    `;
-    return;
+    return {
+      main: 'Sin avance detectado entre cortes',
+      detail: `Entre el ${formatFecha(primero.fecha)} y el ${formatFecha(ultimo.fecha)} el valor cotizado no aumentó. Sigue capturando avance y guarda un nuevo corte.`,
+    };
   }
 
   const diasRestantes = agg.valorPendiente / ratePorDia;
-  const fechaEstimada = new Date(ahora.getTime() + diasRestantes * 86400000);
+  const fechaEstimada = new Date(Date.now() + diasRestantes * 86400000);
 
+  return {
+    main: new Intl.DateTimeFormat('es-MX', { dateStyle: 'long' }).format(fechaEstimada),
+    detail: `Ritmo de ${formatoMoneda(ratePorDia)}/día, calculado entre el corte del ${formatFecha(primero.fecha)} y el del ${formatFecha(ultimo.fecha)}. Faltan ~${Math.ceil(diasRestantes)} día${Math.ceil(diasRestantes) === 1 ? '' : 's'} para llegar al 100% cotizado y $0.00 pendiente.`,
+  };
+}
+
+function renderProyeccion(agg) {
+  const { main, detail, color } = calcularProyeccion(agg);
   els.proyeccionCard.innerHTML = `
     <p class="proyeccion-card__title">Proyección de término</p>
-    <p class="proyeccion-card__main">${new Intl.DateTimeFormat('es-MX', { dateStyle: 'long' }).format(fechaEstimada)}</p>
-    <p class="proyeccion-card__detail">A un ritmo de ${formatoMoneda(ratePorDia)}/día desde el ${formatFecha(primerCorte.fecha)}, faltan ~${Math.ceil(diasRestantes)} día${Math.ceil(diasRestantes) === 1 ? '' : 's'} para llegar al 100% cotizado y $0.00 pendiente.</p>
+    <p class="proyeccion-card__main"${color ? ` style="color:${color}"` : ''}>${main}</p>
+    <p class="proyeccion-card__detail">${detail}</p>
   `;
 }
 
@@ -854,6 +888,70 @@ els.btnExportar.addEventListener('click', async () => {
 
   sheet.columns = [
     { width: 26 }, { width: 16 }, { width: 10 }, { width: 10 }, { width: 11 }, { width: 20 }, { width: 12 }, { width: 12 }, { width: 20 },
+  ];
+
+  // ---- Hoja: Avance y Proyección ----
+  const sheetAvance = workbook.addWorksheet('Avance y Proyección');
+  const agg = calcularResumenImportes();
+  const proyeccion = calcularProyeccion(agg);
+
+  sheetAvance.mergeCells('A1:E1');
+  sheetAvance.getCell('A1').value = `${carga.nombre} — Avance y Proyección`;
+  sheetAvance.getCell('A1').font = { bold: true, size: 14 };
+
+  const importeHeaders = ['Valor Total', 'Valor Cotizado', 'Valor Pendiente', 'SKUs Total', 'SKUs Cotizados', 'SKUs Pendientes', 'Duplicados'];
+  const importeValores = [
+    formatoMoneda(agg.valorTotal), formatoMoneda(agg.valorCotizado), formatoMoneda(agg.valorPendiente),
+    agg.skusTotal, agg.skusCotizado, agg.skusPendiente, agg.duplicados,
+  ];
+  importeHeaders.forEach((h, i) => {
+    const cell = sheetAvance.getCell(3, i + 1);
+    cell.value = h;
+    cell.font = { bold: true, size: 9, color: { argb: 'FF6B7280' } };
+  });
+  importeValores.forEach((v, i) => {
+    const cell = sheetAvance.getCell(4, i + 1);
+    cell.value = v;
+    cell.font = { bold: true, size: 13 };
+  });
+
+  sheetAvance.mergeCells('A6:E6');
+  sheetAvance.getCell('A6').value = 'Proyección de término';
+  sheetAvance.getCell('A6').font = { bold: true, size: 11 };
+  sheetAvance.mergeCells('A7:E7');
+  sheetAvance.getCell('A7').value = proyeccion.main;
+  sheetAvance.getCell('A7').font = { bold: true, size: 13 };
+  sheetAvance.mergeCells('A8:E8');
+  sheetAvance.getCell('A8').value = proyeccion.detail;
+  sheetAvance.getCell('A8').font = { italic: true, size: 9, color: { argb: 'FF6B7280' } };
+  sheetAvance.getRow(8).height = 30;
+  sheetAvance.getCell('A8').alignment = { wrapText: true, vertical: 'top' };
+
+  const cortesHeaderRow = 10;
+  ['Fecha', 'Valor Total', 'Valor Cotizado', '% Avance en Valor', 'SKUs Cotizados', 'Nota'].forEach((h, i) => {
+    const cell = sheetAvance.getCell(cortesHeaderRow, i + 1);
+    cell.value = h;
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F46E5' } };
+  });
+
+  if (cortes.length === 0) {
+    sheetAvance.getCell(cortesHeaderRow + 1, 1).value = 'Todavía no hay cortes guardados.';
+  } else {
+    cortes.forEach((c, i) => {
+      const rowIndex = cortesHeaderRow + 1 + i;
+      const pctValor = c.valor_total > 0 ? (c.valor_cotizado / c.valor_total) * 100 : 0;
+      [
+        formatFecha(c.fecha), formatoMoneda(c.valor_total), formatoMoneda(c.valor_cotizado),
+        Number(pctValor.toFixed(1)), c.skus_cotizado, c.nota || '',
+      ].forEach((v, colIdx) => {
+        sheetAvance.getCell(rowIndex, colIdx + 1).value = v;
+      });
+    });
+  }
+
+  sheetAvance.columns = [
+    { width: 22 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 30 },
   ];
 
   const sheetComentarios = workbook.addWorksheet('Comentarios');
