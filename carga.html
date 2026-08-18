@@ -22,6 +22,7 @@
           <p class="app-header__sub" id="meta-carga"></p>
         </div>
         <div class="app-header__actions">
+          <button id="btn-exportar" class="btn btn-ghost-inverse hidden">⬇ Exportar Excel</button>
           <button id="btn-reemplazar" class="btn btn-ghost-inverse hidden">Reemplazar archivo</button>
           <button id="btn-agregar-area" class="btn btn-primary-inverse hidden">+ Agregar área</button>
         </div>
@@ -41,9 +42,13 @@
 
     <!-- Workspace: tabs Detalle / Informe por Zona -->
     <section id="workspace" class="hidden">
-      <div class="tabs">
-        <button class="tab-btn active" data-tab="detalle">Detalle</button>
-        <button class="tab-btn" data-tab="informe">Informe por Zona</button>
+      <div class="tabs-row">
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="detalle">Detalle</button>
+          <button class="tab-btn" data-tab="informe">Informe por Zona</button>
+          <button class="tab-btn" data-tab="avance">Avance y Proyección</button>
+        </div>
+        <button id="btn-responsables" class="btn btn-ghost">👤 Responsables</button>
       </div>
 
       <div id="tab-detalle" class="tab-panel">
@@ -61,6 +66,10 @@
             <div id="lbl-acomodo" class="metric-card__value">0%</div>
           </div>
           <div class="metric-card">
+            <span class="metric-card__label">Etiquetado Promedio</span>
+            <div id="lbl-etiquetado" class="metric-card__value">0%</div>
+          </div>
+          <div class="metric-card">
             <span class="metric-card__label">Impacto Duplicados</span>
             <div id="lbl-duplicados" class="metric-card__value" style="color:var(--color-danger)">0%</div>
           </div>
@@ -74,9 +83,11 @@
                 <th>Nº Cotización</th>
                 <th style="text-align:center">Limpieza</th>
                 <th style="text-align:center">Acomodo</th>
-                <th style="text-align:center">Avance Cotización (%)</th>
+                <th style="text-align:center">Etiquetado</th>
+                <th style="text-align:center">Validación de Cotización (%)</th>
                 <th style="text-align:center">Duplicados</th>
                 <th style="text-align:right">Subtotal</th>
+                <th>Responsable</th>
                 <th></th>
               </tr>
             </thead>
@@ -86,12 +97,105 @@
       </div>
 
       <div id="tab-informe" class="tab-panel hidden">
+        <h3 class="informe-subtitle">Avance por área</h3>
         <div id="zone-cards" class="zone-cards-grid"></div>
         <div class="chart-card">
           <canvas id="zone-chart" height="110"></canvas>
         </div>
+
+        <h3 class="informe-subtitle" style="margin-top:2rem">Avance por responsable</h3>
+        <div id="responsable-cards" class="zone-cards-grid"></div>
+        <div class="chart-card">
+          <canvas id="responsable-chart" height="110"></canvas>
+        </div>
+      </div>
+
+      <div id="tab-avance" class="tab-panel hidden">
+        <div class="dashboard-grid mb-6">
+          <div class="metric-card">
+            <span class="metric-card__label">Valor Total</span>
+            <div id="lbl-valor-total" class="metric-card__value">$0.00</div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-card__label">Valor Cotizado</span>
+            <div id="lbl-valor-cotizado" class="metric-card__value" style="color:var(--color-success)">$0.00</div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-card__label">Valor Pendiente</span>
+            <div id="lbl-valor-pendiente" class="metric-card__value" style="color:var(--color-danger)">$0.00</div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-card__label">SKUs Total</span>
+            <div id="lbl-skus-total" class="metric-card__value">0</div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-card__label">SKUs Cotizados</span>
+            <div id="lbl-skus-cotizado" class="metric-card__value" style="color:var(--color-success)">0</div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-card__label">SKUs Pendientes</span>
+            <div id="lbl-skus-pendiente" class="metric-card__value" style="color:var(--color-danger)">0</div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-card__label">Duplicados</span>
+            <div id="lbl-avance-duplicados" class="metric-card__value" style="color:var(--color-danger)">0</div>
+          </div>
+        </div>
+
+        <div id="proyeccion-card" class="proyeccion-card"></div>
+
+        <div class="informe-header-row">
+          <h3 class="informe-subtitle" style="margin:0;">Historial de cortes</h3>
+          <button id="btn-nuevo-corte" class="btn btn-primary">📌 Iniciar nuevo corte</button>
+        </div>
+        <div class="table-card mb-6">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th style="text-align:right">Valor Cotizado</th>
+                <th style="text-align:right">% Avance en Valor</th>
+                <th style="text-align:right">SKUs Cotizados</th>
+                <th>Nota</th>
+              </tr>
+            </thead>
+            <tbody id="cortes-body"></tbody>
+          </table>
+        </div>
+
+        <h3 class="informe-subtitle">Importes por área</h3>
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>Área del Almacén</th>
+                <th style="text-align:right">Valor Total ($)</th>
+                <th style="text-align:right">Valor Cotizado ($)</th>
+                <th style="text-align:right">SKUs Total</th>
+                <th style="text-align:right">SKUs Cotizados</th>
+              </tr>
+            </thead>
+            <tbody id="importes-body"></tbody>
+          </table>
+        </div>
       </div>
     </section>
+  </div>
+
+  <!-- Modal: gestionar responsables -->
+  <div id="modal-responsables" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h2>Responsables</h2>
+      <p class="text-sm" style="color:var(--color-text-muted); margin-bottom:1rem;">Agrega personas y asígnalas a cada área desde la columna "Responsable" de la tabla. Una persona puede tener varias áreas.</p>
+      <div id="lista-responsables" class="responsables-list"></div>
+      <div class="responsables-add">
+        <input id="input-nuevo-responsable" type="text" class="modal-input" placeholder="Nombre del responsable" maxlength="80">
+        <button id="btn-agregar-responsable" class="btn btn-primary">Agregar</button>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-cerrar-responsables" class="btn btn-ghost">Cerrar</button>
+      </div>
+    </div>
   </div>
 
   <div id="toast-container" class="toast-container"></div>
@@ -99,6 +203,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4/dist/exceljs.min.js"></script>
   <script src="js/supabase-client.js"></script>
   <script src="js/ui-helpers.js"></script>
   <script src="js/carga.js"></script>
