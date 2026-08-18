@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditoría de Almacén - Sucursales</title>
+    <!-- Tailwind CSS para un diseño limpio y moderno -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- SheetJS (xlsx) para leer archivos de Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800">
+
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <header class="mb-8 flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-6 rounded-xl shadow-sm">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Control de Auditoría y Áreas de Almacén</h1>
+                <p class="text-sm text-gray-500">Carga tu archivo Excel, evalúa los checklist y guarda por sucursal.</p>
+            </div>
+            <div id="sucursal-container" class="flex items-center gap-3 w-full md:w-auto">
+                <input type="text" id="nombre-sucursal" placeholder="Nombre de Sucursal" class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                <button onclick="guardarSucursal()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition cursor-pointer">Guardar en Local</button>
+                <button onclick="cargarSucursalGuardada()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition cursor-pointer">Cargar Guardada</button>
+            </div>
+        </header>
+
+        <!-- Sección de Carga Inicial -->
+        <div id="upload-section" class="bg-white p-8 rounded-xl shadow-sm text-center border-2 border-dashed border-gray-300 mb-8">
+            <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+            </svg>
+            <h3 class="text-lg font-medium text-gray-700 mb-1">Carga tu archivo Excel</h3>
+            <p class="text-sm text-gray-400 mb-4">El archivo debe contener una columna llamada exactamente <strong>"areas del almacen"</strong>.</p>
+            <input type="file" id="excel-file" accept=".xlsx, .xls, .csv" class="block mx-auto text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+        </div>
+
+        <!-- Indicador de Avance General -->
+        <div id="dashboard-section" class="hidden grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Avance Total Ponderado</span>
+                <div id="lbl-avance-total" class="text-2xl font-bold text-blue-600 mt-1">0.00%</div>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Limpieza Promedio</span>
+                <div id="lbl-limpieza" class="text-2xl font-bold text-gray-700 mt-1">0%</div>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Acomodo Promedio</span>
+                <div id="lbl-acomodo" class="text-2xl font-bold text-gray-700 mt-1">0%</div>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Impacto Duplicados</span>
+                <div id="lbl-duplicados" class="text-2xl font-bold text-red-500 mt-1">0%</div>
+            </div>
+        </div>
+
+        <!-- Tabla de Datos -->
+        <div id="table-section" class="hidden bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600 text-xs uppercase tracking-wider border-b border-gray-200">
+                            <th class="py-3 px-4 font-semibold">Área del Almacén</th>
+                            <th class="py-3 px-4 font-semibold">Nº Cotización</th>
+                            <th class="py-3 px-4 font-semibold text-center">Limpieza</th>
+                            <th class="py-3 px-4 font-semibold text-center">Acomodo</th>
+                            <th class="py-3 px-4 font-semibold text-center">Avance Cotización (%)</th>
+                            <th class="py-3 px-4 font-semibold text-center">Duplicados (Cantidad)</th>
+                            <th class="py-3 px-4 font-semibold text-right">Subtotal Renglón</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-body" class="divide-y divide-gray-100 text-sm">
+                        <!-- Filas dinámicas -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script de lógica -->
+    <script>
+        let datosAlmacen = [];
+
+        document.getElementById('excel-file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+                if (json.length === 0) {
+                    alert("El archivo está vacío.");
+                    return;
+                }
+
+                // Buscar la columna "areas del almacen" (insensible a mayúsculas/espacios)
+                const keys = Object.keys(json[0]);
+                const columnaKey = keys.find(k => k.trim().toLowerCase() === "areas del almacen");
+
+                if (!columnaKey) {
+                    alert('No se encontró la columna requerida llamada "areas del almacen". Verifica tu archivo.');
+                    return;
+                }
+
+                datosAlmacen = json.map(row => ({
+                    area: row[columnaKey],
+                    cotizacion: row['cotizacion'] || '',
+                    limpieza: false,
+                    acomodo: false,
+                    avanceCotizacion: 0,
+                    duplicados: 0
+                }));
+
+                renderizarTabla();
+                document.getElementById('upload-section').classList.add('hidden');
+                document.getElementById('dashboard-section').classList.remove('hidden');
+                document.getElementById('table-section').classList.remove('hidden');
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function renderizarTabla() {
+            const tbody = document.getElementById('tabla-body');
+            tbody.innerHTML = '';
+
+            datosAlmacen.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 transition";
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-medium text-gray-800">${item.area}</td>
+                    <td class="py-3 px-4">
+                        <input type="text" value="${item.cotizacion}" onchange="actualizarDato(${index}, 'cotizacion', this.value)" class="w-full px-2 py-1 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="Nº Cotización">
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <input type="checkbox" ${item.limpieza ? 'checked' : ''} onchange="actualizarDato(${index}, 'limpieza', this.checked)" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer">
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <input type="checkbox" ${item.acomodo ? 'checked' : ''} onchange="actualizarDato(${index}, 'acomodo', this.checked)" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer">
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <input type="number" min="0" max="100" value="${item.avanceCotizacion}" onchange="actualizarDato(${index}, 'avanceCotizacion', Number(this.value))" class="w-20 px-2 py-1 border rounded text-center text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <input type="number" min="0" value="${item.duplicados}" onchange="actualizarDato(${index}, 'duplicados', Number(this.value))" class="w-20 px-2 py-1 border rounded text-center text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-red-600">
+                    </td>
+                    <td class="py-3 px-4 text-right font-semibold text-gray-600" id="subtotal-${index}">
+                        0.00%
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            calcularTotales();
+        }
+
+        function actualizarDato(index, campo, valor) {
+            datosAlmacen[index][campo] = valor;
+            calcularTotales();
+        }
+
+        function calcularTotales() {
+            let totalLimpieza = 0;
+            let totalAcomodo = 0;
+            let totalAvanceCot = 0;
+            let totalDuplicados = 0;
+            let totalGeneralPonderado = 0;
+
+            const n = datosAlmacen.length;
+            if (n === 0) return;
+
+            datosAlmacen.forEach((item, index) => {
+                const limVal = item.limpieza ? 100 : 0;
+                const acoVal = item.acomodo ? 100 : 0;
+                const avCotVal = Math.min(Math.max(item.avanceCotizacion, 0), 100);
+                const dupVal = Number(item.duplicados) || 0;
+
+                totalLimpieza += limVal;
+                totalAcomodo += acoVal;
+                totalAvanceCot += avCotVal;
+                totalDuplicados += dupVal;
+
+                // Cálculo ponderado por renglón: 
+                // Digamos que cada pilar vale 25% (Limpieza, Acomodo, Avance Cotización) y los duplicados restan.
+                // Subtotal de renglón = (Limpieza(0 o 100) + Acomodo(0 o 100) + AvanceCot(0-100)) / 3 - (duplicados * penalización ponderada)
+                // Para mantenerlo consistente con un % de avance, el impacto negativo de duplicados se distribuye o resta directamente.
+                const scoreBase = (limVal + acoVal + avCotVal) / 3;
+                const penalizacion = dupVal * 5; // Cada duplicado resta 5% al renglón (ajustable según necesidad)
+                const subtotalRenglon = Math.max(scoreBase - penalizacion, -100);
+
+                totalGeneralPonderado += subtotalRenglon;
+
+                const subElem = document.getElementById(`subtotal-${index}`);
+                if (subElem) {
+                    subElem.innerText = subtotalRenglon.toFixed(1) + '%';
+                    subElem.className = `py-3 px-4 text-right font-semibold ${subtotalRenglon < 0 ? 'text-red-500' : 'text-gray-700'}`;
+                }
+            });
+
+            const promLimpieza = (totalLimpieza / n).toFixed(1);
+            const promAcomodo = (totalAcomodo / n).toFixed(1);
+            const promAvanceCot = (totalAvanceCot / n).toFixed(1);
+            const promGeneral = (totalGeneralPonderado / n).toFixed(1);
+            const impactoDupNegativo = -(totalDuplicados * 5 / n).toFixed(1);
+
+            document.getElementById('lbl-limpieza').innerText = promLimpieza + '%';
+            document.getElementById('lbl-acomodo').innerText = promAcomodo + '%';
+            document.getElementById('lbl-duplicados').innerText = impactoDupNegativo + '%';
+            document.getElementById('lbl-avance-total').innerText = promGeneral + '%';
+        }
+
+        function guardarSucursal() {
+            const nombreSucursal = document.getElementById('nombre-sucursal').value.trim();
+            if (!nombreSucursal) {
+                alert("Por favor, ingresa un nombre de sucursal antes de guardar.");
+                return;
+            }
+            if (datosAlmacen.length === 0) {
+                alert("No hay datos cargados para guardar.");
+                return;
+            }
+
+            localStorage.setItem('auditoria_' + nombreSucursal, JSON.stringify(datosAlmacen));
+            alert(`¡Datos de la sucursal "${nombreSucursal}" guardados exitosamente en el LocalStorage!`);
+        }
+
+        function cargarSucursalGuardada() {
+            const nombreSucursal = document.getElementById('nombre-sucursal').value.trim();
+            if (!nombreSucursal) {
+                alert("Por favor, escribe el nombre de la sucursal que deseas cargar.");
+                return;
+            }
+
+            const dataGuardada = localStorage.getItem('auditoria_' + nombreSucursal);
+            if (!dataGuardada) {
+                alert(`No se encontraron registros guardados para la sucursal "${nombreSucursal}".`);
+                return;
+            }
+
+            datosAlmacen = JSON.parse(dataGuardada);
+            renderizarTabla();
+            document.getElementById('upload-section').classList.add('hidden');
+            document.getElementById('dashboard-section').classList.remove('hidden');
+            document.getElementById('table-section').classList.remove('hidden');
+            alert(`Sucursal "${nombreSucursal}" cargada correctamente.`);
+        }
+    </script>
+</body>
+</html>
