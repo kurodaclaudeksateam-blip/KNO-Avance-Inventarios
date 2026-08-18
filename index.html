@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KNO · Avance de Inventarios</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <div class="page-shell">
+    <header class="app-header">
+      <div class="app-header__inner">
+        <div>
+          <p class="app-header__eyebrow">KNO · Auditoría de Almacén</p>
+          <h1>Cargas guardadas</h1>
+          <p class="app-header__sub">Selecciona una carga para continuar el avance, o crea una nueva.</p>
+        </div>
+      </div>
+    </header>
+
+    <section id="deck" class="deck-grid">
+      <div class="carga-card skeleton" style="height:150px"></div>
+      <div class="carga-card skeleton" style="height:150px"></div>
+      <div class="carga-card skeleton" style="height:150px"></div>
+    </section>
+  </div>
+
+  <div id="modal-nueva" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h2>Nueva carga</h2>
+      <p class="text-sm" style="color:var(--color-text-muted); margin-bottom:1rem;">Dale un nombre a la sucursal o auditoría que vas a registrar.</p>
+      <input id="input-nombre-carga" type="text" class="modal-input" placeholder="Ej. Sucursal Centro" maxlength="80">
+      <div class="modal-actions">
+        <button id="btn-cancelar-nueva" class="btn btn-ghost">Cancelar</button>
+        <button id="btn-crear-nueva" class="btn btn-primary">Crear carga</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/ui-helpers.js"></script>
+  <script src="js/home.js"></script>
+</body>
+</html>

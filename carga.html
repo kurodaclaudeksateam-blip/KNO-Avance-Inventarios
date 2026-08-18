@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KNO · Avance de Inventarios</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <div class="page-shell">
+    <header class="app-header">
+      <div class="app-header__inner">
+        <div>
+          <a href="index.html" class="app-header__back">&larr; Volver a cargas</a>
+          <p class="app-header__eyebrow">KNO · Auditoría de Almacén</p>
+          <h1 id="nombre-carga">Cargando…</h1>
+          <p class="app-header__sub" id="meta-carga"></p>
+        </div>
+        <div class="app-header__actions">
+          <button id="btn-reemplazar" class="btn btn-ghost-inverse hidden">Reemplazar archivo</button>
+          <button id="btn-agregar-area" class="btn btn-primary-inverse hidden">+ Agregar área</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Sección de carga inicial de Excel -->
+    <section id="upload-section" class="upload-card hidden">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+      </svg>
+      <h3 class="text-lg font-medium mb-1">Carga tu archivo Excel</h3>
+      <p class="text-sm mb-4" style="color:var(--color-text-muted)">El archivo debe contener una columna llamada <strong>"areas del almacen"</strong>. Opcionalmente, una columna <strong>"cotizacion"</strong>.</p>
+      <input type="file" id="excel-file" accept=".xlsx, .xls, .csv" class="block mx-auto text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 cursor-pointer">
+      <p class="text-xs mt-4" style="color:var(--color-text-muted)">O si prefieres, <button id="btn-empezar-vacio" class="underline font-medium" style="color:var(--color-primary)">empieza en blanco</button> y agrega áreas manualmente.</p>
+    </section>
+
+    <!-- Workspace: tabs Detalle / Informe por Zona -->
+    <section id="workspace" class="hidden">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="detalle">Detalle</button>
+        <button class="tab-btn" data-tab="informe">Informe por Zona</button>
+      </div>
+
+      <div id="tab-detalle" class="tab-panel">
+        <div class="dashboard-grid mb-6">
+          <div class="metric-card">
+            <span class="metric-card__label">Avance Total Ponderado</span>
+            <div id="lbl-avance-total" class="metric-card__value" style="color:var(--color-primary)">0.0%</div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-card__label">Limpieza Promedio</span>
+            <div id="lbl-limpieza" class="metric-card__value">0%</div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-card__label">Acomodo Promedio</span>
+            <div id="lbl-acomodo" class="metric-card__value">0%</div>
+          </div>
+          <div class="metric-card">
+            <span class="metric-card__label">Impacto Duplicados</span>
+            <div id="lbl-duplicados" class="metric-card__value" style="color:var(--color-danger)">0%</div>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>Área del Almacén</th>
+                <th>Nº Cotización</th>
+                <th style="text-align:center">Limpieza</th>
+                <th style="text-align:center">Acomodo</th>
+                <th style="text-align:center">Avance Cotización (%)</th>
+                <th style="text-align:center">Duplicados</th>
+                <th style="text-align:right">Subtotal</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tabla-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="tab-informe" class="tab-panel hidden">
+        <div id="zone-cards" class="zone-cards-grid"></div>
+        <div class="chart-card">
+          <canvas id="zone-chart" height="110"></canvas>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/ui-helpers.js"></script>
+  <script src="js/carga.js"></script>
+</body>
+</html>
