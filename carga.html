@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=4">
 </head>
 <body>
 
@@ -163,20 +163,20 @@
           </table>
         </div>
 
-        <h3 class="informe-subtitle">Importes por área</h3>
-        <div class="table-card">
-          <table>
-            <thead>
-              <tr>
-                <th>Área del Almacén</th>
-                <th style="text-align:right">Valor Total ($)</th>
-                <th style="text-align:right">Valor Cotizado ($)</th>
-                <th style="text-align:right">SKUs Total</th>
-                <th style="text-align:right">SKUs Cotizados</th>
-              </tr>
-            </thead>
-            <tbody id="importes-body"></tbody>
-          </table>
+        <h3 class="informe-subtitle">Importes generales de la carga</h3>
+        <div class="importes-form">
+          <label>Valor Total ($)
+            <input type="number" min="0" step="0.01" id="input-valor-total">
+          </label>
+          <label>Valor Cotizado ($)
+            <input type="number" min="0" step="0.01" id="input-valor-cotizado">
+          </label>
+          <label>SKUs Total
+            <input type="number" min="0" step="1" id="input-skus-total">
+          </label>
+          <label>SKUs Cotizados
+            <input type="number" min="0" step="1" id="input-skus-cotizado">
+          </label>
         </div>
       </div>
     </section>
@@ -185,8 +185,8 @@
   <!-- Modal: gestionar responsables -->
   <div id="modal-responsables" class="modal-overlay hidden">
     <div class="modal-card">
-      <h2>Responsables</h2>
-      <p class="text-sm" style="color:var(--color-text-muted); margin-bottom:1rem;">Agrega personas y asígnalas a cada área desde la columna "Responsable" de la tabla. Una persona puede tener varias áreas.</p>
+      <h2 id="titulo-modal-responsables">Responsables</h2>
+      <p class="text-sm" id="descripcion-modal-responsables" style="color:var(--color-text-muted); margin-bottom:1rem;">Agrega personas y asígnalas a cada área haciendo clic en la etiqueta "Responsable" de la tabla. Una persona puede tener varias áreas.</p>
       <div id="lista-responsables" class="responsables-list"></div>
       <div class="responsables-add">
         <input id="input-nuevo-responsable" type="text" class="modal-input" placeholder="Nombre del responsable" maxlength="80">
@@ -204,8 +204,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4/dist/exceljs.min.js"></script>
-  <script src="js/supabase-client.js"></script>
-  <script src="js/ui-helpers.js"></script>
-  <script src="js/carga.js"></script>
+  <script src="js/supabase-client.js?v=4"></script>
+  <script src="js/ui-helpers.js?v=4"></script>
+  <script src="js/carga.js?v=4"></script>
 </body>
 </html>

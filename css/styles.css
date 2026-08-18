@@ -266,11 +266,28 @@ body {
 .proyeccion-card__main { font-size: 1.35rem; font-weight: 800; color: var(--color-text); }
 .proyeccion-card__detail { font-size: 0.85rem; color: var(--color-text-muted); margin-top: 0.3rem; }
 
-.table-card select {
-  width: 100%; padding: 0.35rem 0.55rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; background: #fff;
+.responsable-tag {
+  display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.7rem; border-radius: 999px;
+  font-size: 0.78rem; font-weight: 600; border: 1px dashed #c7cbee; background: rgba(79,70,229,0.05); color: var(--color-primary);
+  cursor: pointer; white-space: nowrap; transition: background 0.15s ease;
 }
-.table-card select:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(79,70,229,0.15); }
+.responsable-tag:hover { background: rgba(79,70,229,0.12); }
+.responsable-tag--assigned { border: 1px solid transparent; background: var(--color-primary); color: #fff; }
+.responsable-tag--assigned:hover { background: var(--color-primary-dark); }
+
+.responsable-row__name {
+  background: none; border: none; padding: 0; font: inherit; text-align: left; flex: 1; cursor: pointer; color: var(--color-text);
+}
+.responsable-row__name:hover { color: var(--color-primary); }
+.responsable-row--clear { justify-content: center; color: var(--color-text-muted); font-style: italic; }
+
 .btn-icon.has-comment { color: var(--color-primary); }
+
+/* ---------- Importes generales (Avance y Proyección) ---------- */
+.importes-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; box-shadow: var(--shadow-sm); }
+.importes-form label { display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.78rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.importes-form input { padding: 0.55rem 0.7rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.95rem; font-weight: 600; color: var(--color-text); text-transform: none; letter-spacing: normal; }
+.importes-form input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(79,70,229,0.15); }
 
 .skeleton { background: linear-gradient(90deg, #eceef5 25%, #f5f6fb 37%, #eceef5 63%); background-size: 400% 100%; animation: skeleton-loading 1.4s ease infinite; border-radius: var(--radius-md); }
 @keyframes skeleton-loading { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }

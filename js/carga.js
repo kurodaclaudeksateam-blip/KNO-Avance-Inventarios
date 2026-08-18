@@ -8,6 +8,7 @@ let cortes = [];
 let zoneChart = null;
 let responsableChart = null;
 let currentTab = 'detalle';
+let modalResponsableContextAreaId = null;
 
 const els = {
   nombreCarga: document.getElementById('nombre-carga'),
@@ -22,11 +23,16 @@ const els = {
   btnEmpezarVacio: document.getElementById('btn-empezar-vacio'),
   btnResponsables: document.getElementById('btn-responsables'),
   modalResponsables: document.getElementById('modal-responsables'),
+  tituloModalResponsables: document.getElementById('titulo-modal-responsables'),
+  descripcionModalResponsables: document.getElementById('descripcion-modal-responsables'),
   listaResponsables: document.getElementById('lista-responsables'),
   inputNuevoResponsable: document.getElementById('input-nuevo-responsable'),
   btnAgregarResponsable: document.getElementById('btn-agregar-responsable'),
   btnCerrarResponsables: document.getElementById('btn-cerrar-responsables'),
-  importesBody: document.getElementById('importes-body'),
+  inputValorTotal: document.getElementById('input-valor-total'),
+  inputValorCotizado: document.getElementById('input-valor-cotizado'),
+  inputSkusTotal: document.getElementById('input-skus-total'),
+  inputSkusCotizado: document.getElementById('input-skus-cotizado'),
   cortesBody: document.getElementById('cortes-body'),
   btnNuevoCorte: document.getElementById('btn-nuevo-corte'),
   proyeccionCard: document.getElementById('proyeccion-card'),
@@ -223,10 +229,14 @@ els.btnReemplazar.addEventListener('click', async () => {
 
 // ---------- Tabla / Detalle ----------
 
-function renderSelectResponsable(item) {
-  const opciones = ['<option value="">Sin asignar</option>']
-    .concat(responsables.map((r) => `<option value="${r.id}" ${item.responsable_id === r.id ? 'selected' : ''}>${escapeHtml(r.nombre)}</option>`));
-  return `<select data-field="responsable_id">${opciones.join('')}</select>`;
+function nombreResponsable(id) {
+  return id ? (responsables.find((r) => r.id === id)?.nombre || '') : '';
+}
+
+function renderResponsableTag(item) {
+  const nombre = nombreResponsable(item.responsable_id);
+  const asignado = !!nombre;
+  return `<button type="button" class="responsable-tag ${asignado ? 'responsable-tag--assigned' : ''}" data-action="asignar-responsable" title="Clic para asignar responsable">${asignado ? escapeHtml(nombre) : '+ Asignar'}</button>`;
 }
 
 function renderTabla() {
@@ -240,7 +250,7 @@ function renderTabla() {
       <td style="text-align:center"><input type="number" min="0" max="100" value="${item.avance_cotizacion}" data-field="avance_cotizacion" style="text-align:center"></td>
       <td style="text-align:center"><input type="number" min="0" value="${item.duplicados}" data-field="duplicados" style="text-align:center; color:var(--color-danger)"></td>
       <td style="text-align:right; font-weight:600" id="subtotal-${item.id}">0.0%</td>
-      <td>${renderSelectResponsable(item)}</td>
+      <td>${renderResponsableTag(item)}</td>
       <td style="text-align:center; white-space:nowrap">
         <button class="btn-icon ${item.comentario ? 'has-comment' : ''}" data-action="comentario" title="${item.comentario ? 'Editar comentario' : 'Agregar comentario'}">💬</button>
         <button class="btn-icon" data-action="borrar" title="Borrar área">
@@ -254,13 +264,14 @@ function renderTabla() {
 
   els.tablaBody.querySelectorAll('tr').forEach((tr) => {
     const id = tr.dataset.id;
-    tr.querySelectorAll('input, select').forEach((input) => {
+    tr.querySelectorAll('input').forEach((input) => {
       const field = input.dataset.field;
-      const eventName = (input.type === 'checkbox' || input.tagName === 'SELECT') ? 'change' : 'input';
+      const eventName = input.type === 'checkbox' ? 'change' : 'input';
       input.addEventListener(eventName, () => onCampoCambiado(id, field, input));
     });
     tr.querySelector('[data-action="borrar"]').addEventListener('click', () => borrarArea(id));
     tr.querySelector('[data-action="comentario"]').addEventListener('click', () => editarComentario(id));
+    tr.querySelector('[data-action="asignar-responsable"]').addEventListener('click', () => abrirModalResponsables(id));
   });
 
   calcularTotales();
@@ -279,8 +290,6 @@ function onCampoCambiado(id, field, input) {
   } else if (field === 'duplicados') {
     value = Math.max(Number(input.value) || 0, 0);
     input.value = value;
-  } else if (field === 'responsable_id') {
-    value = input.value === '' ? null : input.value;
   } else {
     value = input.value;
   }
@@ -385,28 +394,80 @@ els.btnAgregarArea.addEventListener('click', async () => {
   else { renderTabla(); renderInforme(); renderAvance(); }
 });
 
-// ---------- Responsables (gestión) ----------
+// ---------- Responsables (gestión y asignación) ----------
+
+function abrirModalResponsables(areaId = null) {
+  modalResponsableContextAreaId = areaId;
+
+  if (areaId) {
+    const item = areas.find((a) => a.id === areaId);
+    els.tituloModalResponsables.textContent = `Responsable de "${item ? item.area : ''}"`;
+    els.descripcionModalResponsables.textContent = 'Elige quién es responsable de esta área, o agrega uno nuevo.';
+  } else {
+    els.tituloModalResponsables.textContent = 'Responsables';
+    els.descripcionModalResponsables.textContent = 'Agrega personas y asígnalas a cada área haciendo clic en la etiqueta "Responsable" de la tabla.';
+  }
+
+  renderListaResponsables();
+  els.modalResponsables.classList.remove('hidden');
+  els.inputNuevoResponsable.focus();
+}
+
+function cerrarModalResponsables() {
+  els.modalResponsables.classList.add('hidden');
+  modalResponsableContextAreaId = null;
+}
 
 function renderListaResponsables() {
+  const enContexto = !!modalResponsableContextAreaId;
+  const itemActual = enContexto ? areas.find((a) => a.id === modalResponsableContextAreaId) : null;
+
+  const limpiar = enContexto
+    ? `<button type="button" class="responsable-row responsable-row--clear" data-action="quitar-asignacion">Sin asignar</button>`
+    : '';
+
   if (responsables.length === 0) {
-    els.listaResponsables.innerHTML = '<p class="responsables-empty">Todavía no hay responsables. Agrega el primero abajo.</p>';
-    return;
+    els.listaResponsables.innerHTML = limpiar + '<p class="responsables-empty">Todavía no hay responsables. Agrega el primero abajo.</p>';
+  } else {
+    els.listaResponsables.innerHTML = limpiar + responsables.map((r) => `
+      <div class="responsable-row" data-id="${r.id}">
+        <button type="button" class="responsable-row__name" data-action="elegir-responsable">${escapeHtml(r.nombre)}${itemActual && itemActual.responsable_id === r.id ? ' ✓' : ''}</button>
+        <button class="btn-icon" data-action="borrar-responsable" title="Quitar responsable">
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    `).join('');
   }
-  els.listaResponsables.innerHTML = responsables.map((r) => `
-    <div class="responsable-row" data-id="${r.id}">
-      <span>${escapeHtml(r.nombre)}</span>
-      <button class="btn-icon" data-action="borrar-responsable" title="Quitar responsable">
-        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-    </div>
-  `).join('');
+
+  const btnLimpiar = els.listaResponsables.querySelector('[data-action="quitar-asignacion"]');
+  if (btnLimpiar) btnLimpiar.addEventListener('click', () => asignarResponsable(modalResponsableContextAreaId, null));
 
   els.listaResponsables.querySelectorAll('[data-action="borrar-responsable"]').forEach((btn) => {
     const id = btn.closest('.responsable-row').dataset.id;
     btn.addEventListener('click', () => eliminarResponsable(id));
   });
+
+  if (enContexto) {
+    els.listaResponsables.querySelectorAll('[data-action="elegir-responsable"]').forEach((btn) => {
+      const id = btn.closest('.responsable-row').dataset.id;
+      btn.addEventListener('click', () => asignarResponsable(modalResponsableContextAreaId, id));
+    });
+  }
+}
+
+function asignarResponsable(areaId, responsableId) {
+  if (!areaId) return;
+  const item = areas.find((a) => a.id === areaId);
+  if (!item) return;
+
+  item.responsable_id = responsableId;
+  renderTabla();
+  if (currentTab === 'informe') renderInforme();
+  guardarCampo(`${areaId}-responsable_id`, areaId, 'responsable_id', responsableId);
+  cerrarModalResponsables();
+  showToast(responsableId ? `Asignado a ${nombreResponsable(responsableId)}.` : 'Área sin asignar.', 'success');
 }
 
 async function agregarResponsable() {
@@ -428,6 +489,12 @@ async function agregarResponsable() {
   responsables.push(data);
   responsables.sort((a, b) => a.nombre.localeCompare(b.nombre));
   els.inputNuevoResponsable.value = '';
+
+  if (modalResponsableContextAreaId) {
+    asignarResponsable(modalResponsableContextAreaId, data.id);
+    return;
+  }
+
   renderListaResponsables();
   renderTabla();
   if (currentTab === 'informe') renderInforme();
@@ -450,13 +517,9 @@ async function eliminarResponsable(id) {
   if (currentTab === 'informe') renderInforme();
 }
 
-els.btnResponsables.addEventListener('click', () => {
-  renderListaResponsables();
-  els.modalResponsables.classList.remove('hidden');
-  els.inputNuevoResponsable.focus();
-});
-els.btnCerrarResponsables.addEventListener('click', () => els.modalResponsables.classList.add('hidden'));
-els.modalResponsables.addEventListener('click', (e) => { if (e.target === els.modalResponsables) els.modalResponsables.classList.add('hidden'); });
+els.btnResponsables.addEventListener('click', () => abrirModalResponsables(null));
+els.btnCerrarResponsables.addEventListener('click', cerrarModalResponsables);
+els.modalResponsables.addEventListener('click', (e) => { if (e.target === els.modalResponsables) cerrarModalResponsables(); });
 els.btnAgregarResponsable.addEventListener('click', agregarResponsable);
 els.inputNuevoResponsable.addEventListener('keydown', (e) => { if (e.key === 'Enter') agregarResponsable(); });
 
@@ -561,40 +624,43 @@ function formatoMoneda(valor) {
   return '$' + (Number(valor) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+const guardarCampoCarga = debounce(async (key, field, value) => {
+  const { error } = await supabaseClient.from('cargas').update({ [field]: value }).eq('id', cargaId);
+  if (error) {
+    console.error(error);
+    showToast('No se pudo guardar el cambio.', 'error');
+  }
+}, 500);
+
 function calcularAgregadosImportes() {
-  return areas.reduce((acc, item) => {
-    acc.valorTotal += Number(item.valor_total) || 0;
-    acc.valorCotizado += Number(item.valor_cotizado) || 0;
-    acc.skusTotal += Number(item.skus_total) || 0;
-    acc.skusCotizado += Number(item.skus_cotizado) || 0;
-    acc.duplicados += Number(item.duplicados) || 0;
-    return acc;
-  }, { valorTotal: 0, valorCotizado: 0, skusTotal: 0, skusCotizado: 0, duplicados: 0 });
+  const duplicados = areas.reduce((acc, item) => acc + (Number(item.duplicados) || 0), 0);
+  return {
+    valorTotal: Number(carga.valor_total) || 0,
+    valorCotizado: Number(carga.valor_cotizado) || 0,
+    skusTotal: Number(carga.skus_total) || 0,
+    skusCotizado: Number(carga.skus_cotizado) || 0,
+    duplicados,
+  };
 }
 
-function renderImportesTabla() {
-  els.importesBody.innerHTML = areas.map((item) => `
-    <tr data-id="${item.id}">
-      <td class="font-medium">${escapeHtml(item.area)}</td>
-      <td><input type="number" min="0" step="0.01" value="${item.valor_total}" data-field="valor_total" style="text-align:right"></td>
-      <td><input type="number" min="0" step="0.01" value="${item.valor_cotizado}" data-field="valor_cotizado" style="text-align:right"></td>
-      <td><input type="number" min="0" step="1" value="${item.skus_total}" data-field="skus_total" style="text-align:right"></td>
-      <td><input type="number" min="0" step="1" value="${item.skus_cotizado}" data-field="skus_cotizado" style="text-align:right"></td>
-    </tr>
-  `).join('');
+function renderImportesForm() {
+  els.inputValorTotal.value = carga.valor_total;
+  els.inputValorCotizado.value = carga.valor_cotizado;
+  els.inputSkusTotal.value = carga.skus_total;
+  els.inputSkusCotizado.value = carga.skus_cotizado;
 
-  els.importesBody.querySelectorAll('input').forEach((input) => {
-    const tr = input.closest('tr');
-    const id = tr.dataset.id;
-    const field = input.dataset.field;
-    input.addEventListener('input', () => {
-      const item = areas.find((a) => a.id === id);
-      if (!item) return;
+  [
+    [els.inputValorTotal, 'valor_total'],
+    [els.inputValorCotizado, 'valor_cotizado'],
+    [els.inputSkusTotal, 'skus_total'],
+    [els.inputSkusCotizado, 'skus_cotizado'],
+  ].forEach(([input, field]) => {
+    input.oninput = () => {
       const value = Math.max(Number(input.value) || 0, 0);
-      item[field] = value;
+      carga[field] = value;
       renderProyeccion(renderResumenImportes());
-      guardarCampo(`${id}-${field}`, id, field, value);
-    });
+      guardarCampoCarga(field, field, value);
+    };
   });
 }
 
@@ -679,7 +745,7 @@ function renderProyeccion(agg) {
 }
 
 function renderAvance() {
-  renderImportesTabla();
+  renderImportesForm();
   const agg = renderResumenImportes();
   renderCortesTabla();
   renderProyeccion(agg);
